@@ -1,0 +1,8 @@
+services:
+  web:
+    build:
+      context: .
+      args:
+        NEXT_PUBLIC_JUDGE_URL: http://localhost:3001
+    ports:
+      - "3000:3000"
