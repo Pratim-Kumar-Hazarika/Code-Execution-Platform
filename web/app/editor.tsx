@@ -28,9 +28,6 @@ int main() {
 `,
 };
 
-const JUDGE_URL =
-  process.env.NEXT_PUBLIC_JUDGE_URL ?? "http://localhost:3001";
-
 type RunResult = {
   id?: string;
   status?: string;
@@ -42,7 +39,7 @@ async function pollResult(id: string): Promise<RunResult> {
   const deadline = Date.now() + 30_000;
 
   while (Date.now() < deadline) {
-    const res = await fetch(`${JUDGE_URL}/result?id=${encodeURIComponent(id)}`);
+    const res = await fetch(`/api/result?id=${encodeURIComponent(id)}`);
     const data = (await res.json()) as RunResult;
 
     if (res.status === 202 || data.status === "pending") {
@@ -84,7 +81,7 @@ export default function Editor() {
     setResult(null);
 
     try {
-      const res = await fetch(`${JUDGE_URL}/execute`, {
+      const res = await fetch(`/api/execute`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ language, code }),

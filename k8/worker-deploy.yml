@@ -1,0 +1,29 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: worker-deployment
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: worker-app
+  template:
+    metadata:
+      labels:
+        app: worker-app
+    spec:
+      containers:
+        - name: worker
+          image: beyondhuman6969/mini-judge:0.2
+          env:
+            - name: REDIS_ADDR
+              value: redis:6379
+            - name: ROLE
+              value: worker
+            - name: DOCKER_HOST
+              value: tcp://docker-dind:2375
+          resources:
+            requests:
+              cpu: "200m"
+            limits:
+              cpu: "500m"

@@ -1,0 +1,41 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: web-deployment
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: web-app
+  template:
+    metadata:
+      labels:
+        app: web-app
+    spec:
+      containers:
+        - name: web-app
+          image: beyondhuman6969/code-run-web:0.3
+          ports:
+            - containerPort: 3000
+          env:
+            - name: JUDGE_URL
+              value: http://backend-service:3001
+          resources:
+            requests:
+              cpu: "100m"
+            limits:
+              cpu: "100m"
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: web-service
+spec:
+  selector:
+    app: web-app
+  ports:
+    - protocol: TCP
+      port: 80
+      targetPort: 3000
+  type: LoadBalancer

@@ -1,0 +1,60 @@
+# One Docker engine for the cluster. Do not scale this Deployment.
+# Workers call it via ClusterIP: DOCKER_HOST=tcp://docker-dind:2375
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: docker-dind
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: docker-dind
+  template:
+    metadata:
+      labels:
+        app: docker-dind
+    spec:
+      containers:
+        - name: docker
+          image: docker:27-dind
+          securityContext:
+            privileged: true
+          env:
+            - name: DOCKER_TLS_CERTDIR
+              value: ""
+          args:
+            - --host=tcp://0.0.0.0:2375
+            - --host=unix:///var/run/docker.sock
+            - --tls=false
+          ports:
+            - containerPort: 2375
+              name: docker
+          readinessProbe:
+            tcpSocket:
+              port: 2375
+            initialDelaySeconds: 5
+            periodSeconds: 5
+          resources:
+            requests:
+              cpu: "1000m"
+            limits:
+              cpu: "1000m"
+          volumeMounts:
+            - name: docker-graph
+              mountPath: /var/lib/docker
+      volumes:
+        - name: docker-graph
+          emptyDir: {}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: docker-dind
+spec:
+  type: ClusterIP
+  selector:
+    app: docker-dind
+  ports:
+    - name: docker
+      port: 2375
+      targetPort: 2375
