@@ -1,0 +1,42 @@
+@import "tailwindcss";
+
+:root {
+  --term-bg: #050805;
+  --term-fg: #3dff7a;
+  --term-dim: #1e7a3a;
+  --term-red: #ff5f56;
+}
+
+@theme inline {
+  --font-sans: var(--font-geist-mono);
+  --font-mono: var(--font-geist-mono);
+}
+
+html,
+body {
+  height: 100%;
+  background: #000;
+  color: var(--term-fg);
+  font-family: var(--font-geist-mono), ui-monospace, Menlo, Monaco, monospace;
+}
+
+@keyframes blink {
+  50% {
+    opacity: 0;
+  }
+}
+
+.cursor-blink {
+  animation: blink 1.1s step-end infinite;
+}
+
+.scanlines {
+  background-image: repeating-linear-gradient(
+    to bottom,
+    rgb(0 0 0 / 0.12) 0px,
+    rgb(0 0 0 / 0.12) 1px,
+    transparent 1px,
+    transparent 3px
+  );
+  pointer-events: none;
+}

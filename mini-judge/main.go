@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"os"
 
 	"github.com/redis/go-redis/v9"
 )
@@ -14,8 +15,13 @@ var rdb  *redis.Client
 
 
 func initRedis(){
+	addr := os.Getenv("REDIS_ADDR")
+	if addr == "" {
+		addr = "localhost:6379"
+	}
+
 	rdb = redis.NewClient(&redis.Options{
-		Addr: "localhost:6379",
+		Addr: addr,
 	})
 	_,err := rdb.Ping(ctx).Result()
 
@@ -23,7 +29,7 @@ func initRedis(){
 		fmt.Println("Failed to connect to Redis:", err)
 		return;
 	}
-	fmt.Println("Connected to Redis")
+	fmt.Println("Connected to Redis", addr)
 }
 
 func hello ( w http.ResponseWriter, r *http.Request){
@@ -69,8 +75,8 @@ func executeHandler(w http.ResponseWriter,r  *http.Request){
 
 	 //only js
 
-	 if request.Language != "javascript"{
-		http.Error(w,"Only js is supported now",http.StatusBadRequest)
+	 if request.Language != "javascript" &&request.Language != "cpp"{
+		http.Error(w,"Only javascript and cpp is supported now",http.StatusBadRequest)
 		return;
 	 }
 	 
@@ -143,12 +149,78 @@ func executeHandler(w http.ResponseWriter,r  *http.Request){
 
 }
 
+func resultHandler(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodGet {
+		http.Error(w, "Only GET is allowed", http.StatusMethodNotAllowed)
+		return
+	}
+
+	id := r.URL.Query().Get("id")
+	if id == "" {
+		http.Error(w, "Missing id", http.StatusBadRequest)
+		return
+	}
+
+	val, err := rdb.Get(ctx, "result:"+id).Result()
+	if err == redis.Nil {
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusAccepted)
+		json.NewEncoder(w).Encode(map[string]string{
+			"id":     id,
+			"status": "pending",
+		})
+		return
+	}
+	if err != nil {
+		http.Error(w, "Could not read result", http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	w.Write([]byte(val))
+}
+
+func withCORS(next http.HandlerFunc) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Access-Control-Allow-Origin", "*")
+		w.Header().Set("Access-Control-Allow-Headers", "Content-Type")
+		w.Header().Set("Access-Control-Allow-Methods", "GET, POST, OPTIONS")
+		if r.Method == http.MethodOptions {
+			w.WriteHeader(http.StatusNoContent)
+			return
+		}
+		next(w, r)
+	}
+}
+
 func main() {
 
 	initRedis()
-	go worker()
-	http.HandleFunc("/hello",hello)
-	http.HandleFunc("/execute", executeHandler)
+
+	role := os.Getenv("ROLE")
+	if role == "" {
+		role = "all"
+	}
+
+	// Kubernetes:
+	//   API Deployment    ROLE=api
+	//   Worker Deployment ROLE=worker  (scale this with KEDA)
+	// Local:
+	//   ROLE=all (default) — one process, HTTP + one worker
+
+	if role == "worker" {
+		fmt.Println("Starting as worker")
+		worker()
+		return
+	}
+
+	if role == "all" {
+		go worker()
+	}
+
+	http.HandleFunc("/hello", withCORS(hello))
+	http.HandleFunc("/execute", withCORS(executeHandler))
+	http.HandleFunc("/result", withCORS(resultHandler))
 
 	fmt.Println("Server starting at port http://localhost:3001  ")
 
