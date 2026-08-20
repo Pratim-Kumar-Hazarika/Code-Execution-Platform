@@ -1,0 +1,25 @@
+services:
+  redis:
+    image: redis:7-alpine
+
+  mini-judge:
+    build: ./mini-judge
+    environment:
+      REDIS_ADDR: redis:6379
+      ROLE: all
+    ports:
+      - "3001:3001"
+    depends_on:
+      - redis
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+
+  web:
+    build:
+      context: ./web
+      args:
+        NEXT_PUBLIC_JUDGE_URL: http://localhost:3001
+    ports:
+      - "3000:3000"
+    depends_on:
+      - mini-judge
